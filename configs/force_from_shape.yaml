@@ -1,0 +1,79 @@
+# ===================================================================
+# Pasternak Force Solver — 配置文件（Google 风格注释）
+#
+# 此配置同时服务于：
+#   - tools/force_from_shape.py      从位移 w 反算 (Qx,Qy,R) 与 q
+#   - 批量模式（目录扫描）/ 单文件模式
+#
+# 术语与单位：
+#   E   [Pa]        弹性模量
+#   nu  [-]         泊松比
+#   h   [m]         板厚
+#   Gp  [Pa·m]      Pasternak 剪切参数
+#   k   [N/m^3]     Winkler 基床系数
+#   a   [m]         正方形板边长；dx = a/(N-1)，N=网格点数(H=W)
+#
+# 输入/输出：
+#   输入位移：w.npy，形状 (H, W)，单位 [m]
+#   输出力场：forces_3ch.npy，形状 (H, W, 3)，通道 [Qx,Qy,R]
+#              Qx,Qy [N/m]，R [N/m^2]
+#   输出载荷：q.npy，形状 (H, W)，单位 [N/m^2]
+#
+# 运行示例（单文件）：
+#   python tools/force_from_shape.py --config configs/force_from_shape.yaml --input ./w.npy
+#
+# 运行示例（批量）：
+#   python tools/force_from_shape.py --config configs/force_from_shape.yaml \
+#     --input-dir ./w_dir --recursive
+#
+# 重要说明：
+#   - 本文件“仅注释优化”，所有数值与键名保持不变。
+#   - 若 w 的边界不为 0，可设置 enforce_zero_boundary: true 提高稳定性。
+# ===================================================================
+
+# -----------------------------
+# 材料与地基参数（单位见上）
+# 对应脚本：compute_fields_from_shape() 中的 E, nu, h, Gp, k
+# -----------------------------
+E: 2.0e9        # 弹性模量 [Pa]（示例：2 GPa）
+nu: 0.30        # 泊松比 [-]（0~0.5 之间）
+h:  1.0e-3      # 板厚 [m]
+Gp: 1.0e5       # Pasternak 剪切参数 [Pa·m]
+k:  5.0e6       # Winkler 基床系数 [N/m^3]
+
+# -----------------------------
+# 几何参数
+# -----------------------------
+a: 1.0          # 正方形板边长 [m]；脚本内 dx = a/(N-1)，其中 N=H=W
+
+# -----------------------------
+# 输入（单文件与批量）
+# -----------------------------
+input_w_path: "./w.npy"    # 单文件模式：位移 w.npy 路径（形状 (H,W)，单位 [m]）
+
+# 批量模式：在 input_dir 下按 input_glob 搜索位移文件（.npy），
+# 每个文件都应为二维 (H,W) 数组；可递归。
+input_dir: "./w_dir"       # 输入目录（批量）
+input_glob: "*.npy"        # 匹配模式（当前实现为简单后缀/通配匹配）
+recursive: true            # 是否递归子目录
+
+# -----------------------------
+# 输出
+# -----------------------------
+# 运行时会在 output_root 下生成时间戳子目录：
+#   forces_out/run_YYYY-MM-DD_HH-MM-SS/<输入文件名去扩展名>/
+# 目录内包含：
+#   - forces_3ch.npy  (H,W,3)  通道 [Qx,Qy,R]
+#   - q.npy           (H,W)
+#   - meta.json       元数据（来源、参数、时间）
+output_root: "./forces_out"
+
+# 输出文件名（可改名；脚本根据文件名识别类型与避免回读）
+output_forces_name: "forces_3ch.npy"   # 力场文件；Qx,Qy [N/m]，R [N/m^2]
+output_q_name: "q.npy"                 # 外载荷文件；q [N/m^2]
+
+# -----------------------------
+# 可选行为
+# -----------------------------
+save_individual_channels: false  # 为兼容旧流程，可额外输出 Qx.npy/Qy.npy/R.npy 与 forces.npz
+enforce_zero_boundary: false     # 计算前将 w 的四边强制置零；当边界质量欠佳或噪声大时可提升稳定性
