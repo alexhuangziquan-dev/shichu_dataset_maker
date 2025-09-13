@@ -35,16 +35,18 @@
 # 材料与地基参数（单位见上）
 # 对应脚本：compute_fields_from_shape() 中的 E, nu, h, Gp, k
 # -----------------------------
-E: 2.0e9        # 弹性模量 [Pa]（示例：2 GPa）
-nu: 0.30        # 泊松比 [-]（0~0.5 之间）
-h:  1.0e-3      # 板厚 [m]
-Gp: 1.0e5       # Pasternak 剪切参数 [Pa·m]
-k:  5.0e6       # Winkler 基床系数 [N/m^3]
+E:   3.0e6      # 弹性模量 [Pa] ≈1.56 MPa（PDMS+铝粉1/30，体积分数≈1.4%）
+nu: 0.47        # 泊松比 [-] 近不可压，数值计算更稳
+h:  4.25e-3      # 板厚 [m] 3 mm
+
+# 基底按软泡沫等效的Pasternak两参数（可据实际基底再标定）
+Gp: 5.0      # Pasternak剪切参数 [Pa·m] ≈ G_f * t_f （E_f=50kPa, ν_f=0.30, t_f=10mm）
+k:  1.0e6       # Winkler基床系数 [N/m^3] ≈ E_f/(1-ν_f^2)/t_f
 
 # -----------------------------
 # 几何参数
 # -----------------------------
-a: 1.0          # 正方形板边长 [m]；脚本内 dx = a/(N-1)，其中 N=H=W
+a: 1.4525e-2          # 正方形板边长 [m]；脚本内 dx = a/(N-1)，其中 N=H=W
 
 # -----------------------------
 # 输入（单文件与批量）
@@ -76,4 +78,19 @@ output_q_name: "q.npy"                 # 外载荷文件；q [N/m^2]
 # 可选行为
 # -----------------------------
 save_individual_channels: false  # 为兼容旧流程，可额外输出 Qx.npy/Qy.npy/R.npy 与 forces.npz
-enforce_zero_boundary: false     # 计算前将 w 的四边强制置零；当边界质量欠佳或噪声大时可提升稳定性
+
+
+# 轻处理 → 控制 Qx/Qy/R
+pre_smooth_sigma: 2.0
+downsample_stride: 3
+downsample_mode: mean
+upsample_back: true          # 保证输出维持 256×256
+
+# 强处理 → 只作用于 q 计算
+q_pre_smooth_sigma: 6.0      # q 的高斯平滑（像素）
+q_downsample_stride: 7       # q 的下采样倍数
+q_downsample_mode: mean
+q_fft_lowpass_ratio: 0.15    # 频域低通，0 关闭；建议 0.12~0.2
+q_fft_lowpass_soft: true     # 余弦过渡
+
+# 如不确定单位：w_scale_to_m: 1e-6   # 如果你的 w 是“微米”
